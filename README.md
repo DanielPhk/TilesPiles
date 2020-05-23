@@ -1,2 +1,2 @@
 # TilesPiles
-Sandwich Style Prototype
+Sandwich Style Prototype by Alessandro Stoduto
