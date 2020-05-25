@@ -58,6 +58,7 @@ public class GridManager : MonoBehaviour
     public TextMeshProUGUI victoryUI;
 
     //private references
+    public static GridManager instance;
     RaycastHit hit;
     Ray ray;
     private Vector3 actualCenter;
@@ -83,6 +84,19 @@ public class GridManager : MonoBehaviour
     private Vector3 startPosition;
     private Vector3 endPosition;
 
+
+    private void Awake()
+    {
+        if(instance != null && instance != null)
+        {
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            instance = this;
+        }
+    }
+    
 
     void Start()
     {
@@ -162,7 +176,6 @@ public class GridManager : MonoBehaviour
                                 direction = Input.mousePosition - mouseStartPosition;
                                 direction = new Vector3(direction.x, 0, direction.y);
                                 direction.Normalize();
-                                Debug.Log(direction);
                                 CalculateMovement();
                             }
                         }
@@ -266,7 +279,6 @@ public class GridManager : MonoBehaviour
                             if (grid[row - 1, col].objectInCellCounter != 0 && grid[row - 1, col].ingredientsOnCell[grid[row - 1, col].objectInCellCounter - 1] == destinationIngredient)
                             {
                                 newIngredientPosition = new Vector3(grid[row - 1, col].Center.x, 0.05f + (0.1f * grid[row - 1, col].objectInCellCounter), grid[row - 1, col].Center.z);
-                                Debug.Log((float)newIngredientPosition.y);
                                 rowIndex = row;
                                 colIndex = col;
                             }
@@ -299,11 +311,6 @@ public class GridManager : MonoBehaviour
                         grid[rowIndex, colIndex].ingredientsOnCell.Remove(selectedIngredient.transform.GetChild(i).gameObject);
                     }
                 }
-            }
-
-            for (int i = 0; i < grid[rowIndex - 1, colIndex].objectInCellCounter; i++)
-            {
-                Debug.Log(grid[rowIndex - 1, colIndex].ingredientsOnCell[i]);
             }
 
             destination = grid[rowIndex, colIndex].topBound;
@@ -380,7 +387,6 @@ public class GridManager : MonoBehaviour
                             if (grid[row, col + 1].objectInCellCounter != 0 && grid[row, col + 1].ingredientsOnCell[grid[row, col + 1].objectInCellCounter - 1] == destinationIngredient)
                             {
                                 newIngredientPosition = new Vector3(grid[row, col + 1].Center.x, 0.05f + 0.1f * grid[row, col + 1].objectInCellCounter, grid[row, col + 1].Center.z);
-                                Debug.Log((float)newIngredientPosition.y);
                                 rowIndex = row;
                                 colIndex = col;
                             }
@@ -415,11 +421,6 @@ public class GridManager : MonoBehaviour
                 }
             }
 
-            for (int i = 0; i < grid[rowIndex, colIndex + 1].objectInCellCounter; i++)
-            {
-                Debug.Log(grid[rowIndex, colIndex + 1].ingredientsOnCell[i]);
-            }
-
             destination = grid[rowIndex, colIndex].rightBound;
             actualRotation = new Vector3(0, 0, -180);
             finalRotationDir = new Vector3(selectedIngredient.transform.eulerAngles.x, selectedIngredient.transform.eulerAngles.y, selectedIngredient.transform.eulerAngles.z - 180);
@@ -441,7 +442,6 @@ public class GridManager : MonoBehaviour
                             if (grid[row, col - 1].objectInCellCounter != 0 && grid[row, col - 1].ingredientsOnCell[grid[row, col - 1].objectInCellCounter - 1] == destinationIngredient)
                             {
                                 newIngredientPosition = new Vector3(grid[row, col - 1].Center.x, 0.05f + 0.1f * grid[row, col - 1].objectInCellCounter, grid[row, col - 1].Center.z);
-                                Debug.Log((float)newIngredientPosition.y);
                                 rowIndex = row;
                                 colIndex = col;
                             }
@@ -475,18 +475,12 @@ public class GridManager : MonoBehaviour
                 }
             }
 
-            for (int i = 0; i < grid[rowIndex, colIndex - 1].objectInCellCounter; i++)
-            {
-                Debug.Log(grid[rowIndex, colIndex - 1].ingredientsOnCell[i]);
-            }
-
             destination = grid[rowIndex, colIndex].leftBound;
             actualRotation = new Vector3(0, 0, 180);
             finalRotationDir = new Vector3(selectedIngredient.transform.eulerAngles.x, selectedIngredient.transform.eulerAngles.y, selectedIngredient.transform.eulerAngles.z + 180);
             colIndex = colIndex - 1;
             movePiece = true;
         }
-        Debug.Log(newIngredientPosition);
     }
 
     private void MovePiece()
@@ -549,7 +543,6 @@ public class GridManager : MonoBehaviour
                     otherCellsWithIngredient = true;
                     victoryCondition = false;
                 }
-                Debug.Log(grid[row, col].objectInCellCounter + " " + victoryCondition);
             }
         }
 
@@ -557,7 +550,6 @@ public class GridManager : MonoBehaviour
         {
             if (grid[rowIndex, colIndex].ingredientsOnCell[0].gameObject.name == "Bread(Clone)" && grid[rowIndex, colIndex].ingredientsOnCell[grid[rowIndex, colIndex].objectInCellCounter - 1].gameObject.name == "Bread(Clone)")
             {
-                Debug.Log("VICTORY");
                 victoryUI.text = "YOU WIN";
                 victoryAchieved = true;
                 Time.timeScale = 0;

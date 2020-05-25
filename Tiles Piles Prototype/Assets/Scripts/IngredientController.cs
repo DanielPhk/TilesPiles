@@ -9,7 +9,7 @@ public class IngredientController : MonoBehaviour
     
     void Start()
     {
-        grid = FindObjectOfType<GridManager>();
+        grid = GridManager.instance;
     }
 
     private void OnTriggerEnter(Collider other)
