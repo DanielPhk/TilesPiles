@@ -153,6 +153,7 @@ public class GridManager : MonoBehaviour
     public void StartGame()
     {
         startGame = true;
+        Time.timeScale = 1;
         UIManager.instance.startGame.SetActive(false);
         UIManager.instance.reloadLevel.SetActive(true);
         UIManager.instance.loadLevel.SetActive(false);
@@ -933,6 +934,16 @@ public class GridManager : MonoBehaviour
     public void ReloadLevel()
     {
         Time.timeScale = 1;
+        victoryAchieved = false;
+        selectedIngredient = null;
+        rowIndex = 0;
+        colIndex = 0;
+        selectedIngredient = null;
+        destinationIngredient = null;
+        debugUI.text = "";
+        rotDone = false;
+        movePiece = false;
+        movingIngredient = false;
         startGame = false;
         SaveLevel(0);
         LoadLevel(0);
