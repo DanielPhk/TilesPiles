@@ -2,15 +2,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
 using TMPro;
 
 
 public enum Ingredients
 {
     Empty,
-    Bacon,
     Bread,
+    Bacon,
     Cheese,
     Egg,
     Ham,
@@ -48,6 +49,9 @@ public struct GridCell
 public class GridManager : MonoBehaviour
 {
     [Header("Grid Objects")]
+    public bool useDefaulLevel;
+    public int userDifficultyLevel;
+    //nr of pieces excluded 2 bread pieces
     public Vector3 topLeftGridCellCenter = new Vector3(-3, 0, 3);
     public GridCell[,] grid = new GridCell[4, 4];
     public GameObject[] ingredientsObject;
@@ -84,10 +88,25 @@ public class GridManager : MonoBehaviour
     private Vector3 startPosition;
     private Vector3 endPosition;
 
+    //level generation
+    private int difficultyLevel = 0;
+    private int randomNum = 0;
+    private int breadCounter;
+    private int cellIndex;
+    private int[] indexes = new int[2];
+    private Vector2[] availablePos;
+    private int[] unavailablePos;
+    private int unavailableCounter;
+    private int totalCounter;
+    private bool breakCicle;
+    private int otherIngredientsNum;
+    private Ingredients[] otherIngredients;
+    private bool startGame;
+
 
     private void Awake()
     {
-        if(instance != null && instance != null)
+        if (instance != null && instance != null)
         {
             Destroy(this.gameObject);
         }
@@ -96,11 +115,62 @@ public class GridManager : MonoBehaviour
             instance = this;
         }
     }
-    
+
 
     void Start()
     {
+        if (useDefaulLevel)
+        {
+            GenerateDefaultLevel();
+        }
+        else
+        {
+            GenerateRandomLevel();
+        }
+    }
+    void Update()
+    {
+        if (startGame)
+        {
+            if (!victoryAchieved)
+            {
+                if (!movingIngredient)
+                {
+                    DetectInput();
+                }
+            }
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        if (movePiece)
+        {
+            MovePiece();
+        }
+    }
+
+    public void StartGame()
+    {
+        startGame = true;
+        UIManager.instance.startGame.SetActive(false);
+        UIManager.instance.reloadLevel.SetActive(true);
+        UIManager.instance.loadLevel.SetActive(false);
+        UIManager.instance.loadInputField.gameObject.SetActive(false);
+        UIManager.instance.saveLevel.SetActive(false);
+        UIManager.instance.saveInputField.gameObject.SetActive(false);
+        UIManager.instance.newLevel.SetActive(false);
+        UIManager.instance.plusBtn.SetActive(false);
+        UIManager.instance.minusBtn.SetActive(false);
+    }
+
+    /// <summary>
+    /// Generates the level following inspector instructions
+    /// </summary>
+    private void GenerateDefaultLevel()
+    {
         //grid setup
+        cellCounter = 0;
         actualCenter = topLeftGridCellCenter;
         for (int row = 0; row < 4; row++)
         {
@@ -123,28 +193,304 @@ public class GridManager : MonoBehaviour
             }
             actualCenter = new Vector3(actualCenter.x - 6, 0, actualCenter.z - 2);
         }
-
-
-
     }
-    void Update()
+
+    /// <summary>
+    /// Generates a random level
+    /// </summary>
+    public void GenerateRandomLevel()
     {
-        if (!victoryAchieved)
+        //grid initial setup
+        difficultyLevel = userDifficultyLevel;
+        UIManager.instance.difficoultyText.text = difficultyLevel.ToString();
+        chooseIngredientsPosition = new Ingredients[16];
+        actualCenter = topLeftGridCellCenter;
+        for (int row = 0; row < 4; row++)
         {
-            if (!movingIngredient)
+            for (int col = 0; col < 4; col++)
             {
-                DetectInput();
+                grid[row, col] = new GridCell(actualCenter);
+
+                if (col != 3)
+                {
+                    actualCenter = new Vector3(actualCenter.x + 2, 0, actualCenter.z);
+                }
+            }
+            actualCenter = new Vector3(actualCenter.x - 6, 0, actualCenter.z - 2);
+        }
+
+        //setup first ingredient on grid cell 
+        randomNum = UnityEngine.Random.Range(0, 16);
+        cellCounter = 0;
+        for (int row = 0; row < 4; row++)
+        {
+            for (int col = 0; col < 4; col++)
+            {
+                if (randomNum == cellCounter)
+                {
+                    chooseIngredientsPosition[cellCounter] = Ingredients.Bread;
+                    breadCounter++;
+                    cellIndex = cellCounter;
+                    difficultyLevel--;
+                    indexes[0] = row;
+                    indexes[1] = col;
+                }
+                cellCounter++;
+            }
+        }
+
+        //setup other ingredients on cell based on difficulty level
+        unavailablePos = new int[16];
+        unavailableCounter = 0;
+
+        while (difficultyLevel >= 1)
+        {
+            SetupAvailablePosition(indexes);
+        }
+
+        #region INSTANTIATE
+        actualCenter = topLeftGridCellCenter;
+        cellCounter = 0;
+        for (int row = 0; row < 4; row++)
+        {
+            for (int col = 0; col < 4; col++)
+            {
+                if (chooseIngredientsPosition[cellCounter] != Ingredients.Empty)
+                {
+                    GameObject ingredient = Instantiate(ingredientsObject[(int)chooseIngredientsPosition[cellCounter] - 1], new Vector3(actualCenter.x, 0.05f, actualCenter.z), Quaternion.identity);
+                    grid[row, col].objectInCellCounter++;
+                    grid[row, col].ingredientsOnCell.Add(ingredient);
+                }
+                cellCounter++;
+
+                if (col != 3)
+                {
+                    actualCenter = new Vector3(actualCenter.x + 2, 0, actualCenter.z);
+                }
+            }
+            actualCenter = new Vector3(actualCenter.x - 6, 0, actualCenter.z - 2);
+        }
+        #endregion
+    }
+
+    /// <summary>
+    /// Setups an array with the 4 adiacient grid cell positions and checks if position are available
+    /// </summary>
+    /// <param name="indexPos"></param>
+    private void SetupAvailablePosition(int[] indexPos)
+    {
+        Vector2[] positions = new Vector2[4];
+        bool[] available = new bool[4];
+        int[] newCellIndex = new int[4];
+
+        if (indexes[0] - 1 >= 0)
+        {
+            if (chooseIngredientsPosition[cellIndex - 4] == Ingredients.Empty)
+            {
+                positions[0] = new Vector2(indexes[0] - 1, indexes[1]); //up cell
+                available[0] = true;
+                newCellIndex[0] = cellIndex - 4;
+            }
+            else
+            {
+                available[0] = false;
+            }
+        }
+        else
+        {
+            available[0] = false;
+        }
+
+        if (indexes[1] + 1 < 4 && chooseIngredientsPosition[cellIndex + 1] == Ingredients.Empty)
+        {
+            positions[1] = new Vector2(indexes[0], indexes[1] + 1); //right cell
+            available[1] = true;
+            newCellIndex[1] = cellIndex + 1;
+        }
+        else
+        {
+            available[1] = false;
+        }
+
+        if (indexes[0] + 1 < 4 && chooseIngredientsPosition[cellIndex + 4] == Ingredients.Empty)
+        {
+            positions[2] = new Vector2(indexes[0] + 1, indexes[1]); //down cell
+            available[2] = true;
+            newCellIndex[2] = cellIndex + 4;
+        }
+        else
+        {
+            available[2] = false;
+        }
+
+        if (indexes[1] - 1 >= 0 && chooseIngredientsPosition[cellIndex - 1] == Ingredients.Empty)
+        {
+            positions[3] = new Vector2(indexes[0], indexes[1] - 1); //left cell
+            available[3] = true;
+            newCellIndex[3] = cellIndex - 1;
+        }
+        else
+        {
+            available[3] = false;
+        }
+
+        cellCounter = 0;
+        for (int i = 0; i < available.Length; i++)
+        {
+            if (available[i] == true)
+            {
+                cellCounter++;
+            }
+        }
+
+        if (cellCounter == 0 || cellCounter == 4)
+        {
+            if (unavailableCounter > 0)
+            {
+                bool newUnavailable = false;
+                for (int i = 0; i < unavailableCounter; i++)
+                {
+                    if (cellIndex == unavailablePos[i])
+                    {
+                        newUnavailable = false;
+                        break;
+                    }
+                    else
+                    {
+                        newUnavailable = true;
+                    }
+                }
+
+                if (newUnavailable)
+                {
+                    unavailablePos[unavailableCounter] = cellIndex;
+                    unavailableCounter++;
+                }
+            }
+            else
+            {
+                unavailablePos[unavailableCounter] = cellIndex;
+                unavailableCounter++;
+            }
+        }
+
+        if (cellCounter > 0 && cellCounter <4)
+        {
+            availablePos = new Vector2[cellCounter];
+
+            int count = 0;
+            for (int i = 0; i < positions.Length; i++)
+            {
+                if (available[i] == true)
+                {
+                    availablePos[count] = positions[i];
+                    count++;
+                }
+            }
+
+            int random = UnityEngine.Random.Range(0, availablePos.Length);
+            for (int i = 0; i < positions.Length; i++)
+            {
+                if (availablePos[random] == positions[i])
+                {
+                    cellIndex = newCellIndex[i];
+                }
+            }
+            if (breadCounter < 2)
+            {
+                chooseIngredientsPosition[cellIndex] = Ingredients.Bread;
+                breadCounter++;
+            }
+            else
+            {
+                chooseIngredientsPosition[cellIndex] = (Ingredients)UnityEngine.Random.Range(2, 10);
+            }
+
+            indexes[0] = (int)availablePos[random].x;
+            indexes[1] = (int)availablePos[random].y;
+            unavailableCounter = 0;
+            unavailablePos = new int[16];
+
+            difficultyLevel--;
+        }
+        else
+        {
+
+            Debug.Log("No more available position. Choosing a new start position");
+            cellCounter = 0;
+            for (int row = 0; row < 4; row++)
+            {
+                for (int col = 0; col < 4; col++)
+                {
+                    if (chooseIngredientsPosition[cellCounter] == Ingredients.Empty)
+                    {
+                        bool isAvaialble = false;
+
+
+                        for (int i = 0; i < unavailableCounter; i++)
+                        {
+                            if (cellCounter == unavailablePos[i])
+                            {
+                                isAvaialble = false;
+                                break;
+                            }
+                            else
+                            {
+                                isAvaialble = true;
+                            }
+                        }
+
+
+
+
+                        if (isAvaialble)
+                        {
+                            if ((row - 1 >= 0 && chooseIngredientsPosition[cellCounter - 4] != Ingredients.Empty) &&
+                                        (col + 1 < 4 && chooseIngredientsPosition[cellCounter + 1] != Ingredients.Empty) &&
+                                        (col - 1 >= 0 && chooseIngredientsPosition[cellCounter - 1] != Ingredients.Empty) &&
+                                        (row + 1 < 4 && chooseIngredientsPosition[cellCounter + 4] != Ingredients.Empty)
+                                        )
+                            {
+                                cellIndex = cellCounter;
+                                chooseIngredientsPosition[cellIndex] = (Ingredients)UnityEngine.Random.Range(2, 10);
+                                unavailableCounter = 0;
+                                unavailablePos = new int[16];
+                                difficultyLevel--;
+                                indexes[0] = row;
+                                indexes[1] = col;
+                                breakCicle = true;
+                                return;
+
+                            }
+                            else if ((row - 1 >= 0 && chooseIngredientsPosition[cellCounter - 4] != Ingredients.Empty) ||
+                                        (col + 1 < 4 && chooseIngredientsPosition[cellCounter + 1] != Ingredients.Empty) ||
+                                        (col - 1 >= 0 && chooseIngredientsPosition[cellCounter - 1] != Ingredients.Empty) ||
+                                        (row + 1 < 4 && chooseIngredientsPosition[cellCounter + 4] != Ingredients.Empty)
+                                        )
+                            {
+                                cellIndex = cellCounter;
+                                chooseIngredientsPosition[cellIndex] = (Ingredients)UnityEngine.Random.Range(2, 10);
+                                unavailableCounter = 0; 
+                                unavailablePos = new int[16];
+                                difficultyLevel--;
+                                indexes[0] = row;
+                                indexes[1] = col;
+                                breakCicle = true;
+                                return;
+                            }
+                        }
+                    }
+                    cellCounter++;
+                }
+                if (difficultyLevel <= 0 || breakCicle)
+                {
+                    breakCicle = false;
+                    break;
+                }
             }
         }
     }
 
-    private void FixedUpdate()
-    {
-        if (movePiece)
-        {
-            MovePiece();
-        }
-    }
 
     /// <summary>
     /// Debug method
@@ -561,10 +907,184 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    public void NewRandomLevel()
+    {
+        Time.timeScale = 1;
+        startGame = false;
+        IngredientController[] ingredients = FindObjectsOfType<IngredientController>();
+        for (int i = 0; i < ingredients.Length; i++)
+        {
+            Destroy(ingredients[i].gameObject);
+        }
+        breadCounter = 0;
+        GenerateRandomLevel();
+        UIManager.instance.startGame.SetActive(true);
+        UIManager.instance.reloadLevel.SetActive(false);
+        UIManager.instance.loadLevel.SetActive(true);
+        UIManager.instance.loadInputField.gameObject.SetActive(true);
+        UIManager.instance.saveLevel.SetActive(true);
+        UIManager.instance.saveInputField.gameObject.SetActive(true);
+        UIManager.instance.newLevel.SetActive(true);
+        UIManager.instance.plusBtn.SetActive(true);
+        UIManager.instance.minusBtn.SetActive(true);
+    }
+
     public void ReloadLevel()
     {
         Time.timeScale = 1;
-        SceneManager.LoadScene(0);
+        startGame = false;
+        SaveLevel(0);
+        LoadLevel(0);
+        GenerateDefaultLevel();
+        UIManager.instance.startGame.SetActive(true);
+        UIManager.instance.reloadLevel.SetActive(false);
+        UIManager.instance.loadLevel.SetActive(true);
+        UIManager.instance.loadInputField.gameObject.SetActive(true);
+        UIManager.instance.saveLevel.SetActive(true);
+        UIManager.instance.saveInputField.gameObject.SetActive(true);
+        UIManager.instance.newLevel.SetActive(true);
+        UIManager.instance.plusBtn.SetActive(true);
+        UIManager.instance.minusBtn.SetActive(true);
+    }
+
+    public void LoadLevelOfIndex()
+    {
+        Time.timeScale = 1;
+        startGame = false;
+        GenerateDefaultLevel();
+        UIManager.instance.startGame.SetActive(true);
+        UIManager.instance.reloadLevel.SetActive(false);
+    }
+
+    public DataSaver CreateSaveData()
+    {
+        DataSaver save = new DataSaver();
+
+        for (int i = 0; i < save.choosedDisposition.Length; i++)
+        {
+            save.choosedDisposition[i] = chooseIngredientsPosition[i];
+        }
+
+        return save;
+    }
+
+    public void SaveLevel()
+    {
+        string index = UIManager.instance.saveInputField.text;
+        DataSaver save = CreateSaveData();
+
+        BinaryFormatter bf = new BinaryFormatter();
+        FileStream file = File.Create(Application.persistentDataPath + "/level" + index + ".save");
+        bf.Serialize(file, save);
+        file.Close();
+
+        Debug.Log("SavedLevel on index " + index);
+    }
+
+    public void LoadLevel()
+    {
+        string index = UIManager.instance.loadInputField.text;
+        if (File.Exists(Application.persistentDataPath + "/level" + index + ".save"))
+        {
+            IngredientController[] ingredients = FindObjectsOfType<IngredientController>();
+            for (int i = 0; i < ingredients.Length; i++)
+            {
+                Destroy(ingredients[i].gameObject);
+            }
+
+            BinaryFormatter bf = new BinaryFormatter();
+            FileStream file = File.Open(Application.persistentDataPath + "/level" + index + ".save", FileMode.Open);
+            DataSaver save = (DataSaver)bf.Deserialize(file);
+            file.Close();
+
+            chooseIngredientsPosition = new Ingredients[16];
+            for (int i = 0; i < chooseIngredientsPosition.Length; i++)
+            {
+                chooseIngredientsPosition[i] = save.choosedDisposition[i];
+            }
+
+            Debug.Log("LoadedLevel of index " + index);
+            LoadLevelOfIndex();
+        }
+        else
+        {
+            UIManager.instance.ShowDebugUI("Level of index " + index + " does not extst");
+        }
+    }
+
+    public void SaveLevel(int index)
+    {
+        DataSaver save = CreateSaveData();
+
+        BinaryFormatter bf = new BinaryFormatter();
+        FileStream file = File.Create(Application.persistentDataPath + "/level" + index + ".save");
+        bf.Serialize(file, save);
+        file.Close();
+
+        Debug.Log("SavedLevel");
+    }
+
+    public void LoadLevel(int index)
+    {
+        if (File.Exists(Application.persistentDataPath + "/level" + index + ".save"))
+        {
+            IngredientController[] ingredients = FindObjectsOfType<IngredientController>();
+            for (int i = 0; i < ingredients.Length; i++)
+            {
+                Destroy(ingredients[i].gameObject);
+            }
+
+            BinaryFormatter bf = new BinaryFormatter();
+            FileStream file = File.Open(Application.persistentDataPath + "/level" + index + ".save", FileMode.Open);
+            DataSaver save = (DataSaver)bf.Deserialize(file);
+            file.Close();
+
+            chooseIngredientsPosition = new Ingredients[16];
+            for (int i = 0; i < chooseIngredientsPosition.Length; i++)
+            {
+                chooseIngredientsPosition[i] = save.choosedDisposition[i];
+            }
+
+            Debug.Log("LoadedLevel");
+        }
+        else
+        {
+            UIManager.instance.ShowDebugUI("Level of index " + index + " does not extst");
+        }
+    }
+
+    public void IncreaseDiff()
+    {
+        userDifficultyLevel++;
+        if (userDifficultyLevel > 16)
+        {
+            userDifficultyLevel = 16;
+            UIManager.instance.ShowDebugUI("No more than 16 pieces allowed");
+        }
+        UIManager.instance.difficoultyText.text = userDifficultyLevel.ToString();
+    }
+
+    public void DecreaseDiff()
+    {
+        userDifficultyLevel--;
+        if (userDifficultyLevel < 4)
+        {
+            userDifficultyLevel = 4;
+            UIManager.instance.ShowDebugUI("No less than 4 pieces allowed");
+        }
+        UIManager.instance.difficoultyText.text = userDifficultyLevel.ToString();
+    }
+
+    public bool ExistSameLevel(int index)
+    {
+        if (File.Exists(Application.persistentDataPath + "/level" + index + ".save"))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
 }

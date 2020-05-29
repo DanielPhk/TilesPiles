@@ -3,10 +3,12 @@ ScriptsOnlyBuild:
     Assembly-CSharp.dll:
     - GridManager
     - IngredientController
+    - UIManager
     Unity.Rider.Editor.dll:
     - Packages.Rider.Editor.UnitTesting.CallbackData
     Unity.TextMeshPro.dll:
     - TMPro.TMP_FontAsset
+    - TMPro.TMP_InputField
     - TMPro.TMP_Settings
     - TMPro.TMP_SpriteAsset
     - TMPro.TMP_StyleSheet
@@ -28,6 +30,7 @@ ScriptsOnlyBuild:
     - UnityEngine.UI.CanvasScaler
     - UnityEngine.UI.GraphicRaycaster
     - UnityEngine.UI.Image
+    - UnityEngine.UI.RectMask2D
   sceneClasses:
     Assets/Scenes/SandwichPrototype.unity:
     - Class: 1
@@ -65,31 +68,37 @@ ScriptsOnlyBuild:
     - Class: 109
       Script: {instanceID: 0}
     - Class: 114
-      Script: {instanceID: 11178}
+      Script: {instanceID: 11180}
     - Class: 114
-      Script: {instanceID: 11374}
+      Script: {instanceID: 11376}
     - Class: 114
-      Script: {instanceID: 11560}
+      Script: {instanceID: 11398}
     - Class: 114
-      Script: {instanceID: 11758}
+      Script: {instanceID: 11562}
     - Class: 114
-      Script: {instanceID: 11784}
+      Script: {instanceID: 11574}
     - Class: 114
-      Script: {instanceID: 11918}
+      Script: {instanceID: 11762}
     - Class: 114
-      Script: {instanceID: 12136}
+      Script: {instanceID: 11788}
     - Class: 114
-      Script: {instanceID: 12354}
+      Script: {instanceID: 11922}
     - Class: 114
-      Script: {instanceID: 12368}
+      Script: {instanceID: 11950}
     - Class: 114
-      Script: {instanceID: 12548}
+      Script: {instanceID: 12142}
     - Class: 114
-      Script: {instanceID: 12610}
+      Script: {instanceID: 12360}
     - Class: 114
-      Script: {instanceID: 12756}
+      Script: {instanceID: 12374}
     - Class: 114
-      Script: {instanceID: 12958}
+      Script: {instanceID: 12554}
+    - Class: 114
+      Script: {instanceID: 12616}
+    - Class: 114
+      Script: {instanceID: 12762}
+    - Class: 114
+      Script: {instanceID: 12964}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -235,7 +244,7 @@ ScriptsOnlyBuild:
     className: AspectRatioFitter
   - hash:
       serializedVersion: 2
-      Hash: 75ecf298e82baf756c9cd06c21701fb1
+      Hash: f3050b80248ea42dbee02924007d32e4
     assemblyName: Assembly-CSharp.dll
     namespaceName: 
     className: GridManager
@@ -311,6 +320,12 @@ ScriptsOnlyBuild:
     assemblyName: Unity.TextMeshPro.dll
     namespaceName: TMPro
     className: TMP_Asset
+  - hash:
+      serializedVersion: 2
+      Hash: 9aacc1eab3967e8b6a973aa0c42f6c5c
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: 
+    className: UIManager
   - hash:
       serializedVersion: 2
       Hash: d4020bafcd3ccbb5601a6e6c8ac78be0
@@ -543,4 +558,4 @@ ScriptsOnlyBuild:
   scenePathNames:
   - Assets/Scenes/SandwichPrototype.unity
   playerPath: C:/Users/Alessandro/Desktop/Work Projects/Repositories/Midnite APK
-    build/SandwichPrototype 1.0/Sandwich 1.0.apk
+    build/SandwichPrototype 1.0/Sandwich 2.0.apk
