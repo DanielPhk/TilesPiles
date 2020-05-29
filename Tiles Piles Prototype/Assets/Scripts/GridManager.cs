@@ -896,6 +896,7 @@ public class GridManager : MonoBehaviour
         {
             if (grid[rowIndex, colIndex].ingredientsOnCell[0].gameObject.name == "Bread(Clone)" && grid[rowIndex, colIndex].ingredientsOnCell[grid[rowIndex, colIndex].objectInCellCounter - 1].gameObject.name == "Bread(Clone)")
             {
+                UIManager.instance.victoryUI.gameObject.SetActive(true);
                 victoryUI.text = "YOU WIN";
                 victoryAchieved = true;
                 Time.timeScale = 0;
@@ -945,6 +946,8 @@ public class GridManager : MonoBehaviour
         UIManager.instance.newLevel.SetActive(true);
         UIManager.instance.plusBtn.SetActive(true);
         UIManager.instance.minusBtn.SetActive(true);
+        UIManager.instance.victoryUI.gameObject.SetActive(false);
+
     }
 
     public void LoadLevelOfIndex()
